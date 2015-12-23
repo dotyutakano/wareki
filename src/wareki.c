@@ -1,6 +1,7 @@
 /*
- heisei
+ WAREKI
  Displey Japanese Year calendar 
+ 
  ahiru studio
  
  2014/01/25 Ver.1.0.0
@@ -12,6 +13,8 @@
  2015/12/17 Ver.2.2  SDK 3.8 Battery state , Round (APLITE FW3.8)
 
  カラーと白黒では画像の載せ方が違うから別にした方がいいかな？
+ -> 2015/12 Pebble ClassicもFW3.8になったので同じになった
+ 
  */
 
 // Standard includes
@@ -38,11 +41,11 @@ static int   y = 16;
 #endif
 
 // Background color : GColorCeleste / GColorWhite
-// Time Bar color : GColorOxfordBlue / GColorBlack
+// Time Bar color   : GColorOxfordBlue / GColorBlack
 
 // バッテリー表示の無駄な更新を減らすためのフラグ
-// 10:充電中 0-9:バッテリー残量 
-static int   battery_1min_ago = 10;
+// 10:充電中 0-9:バッテリー残量 初期値9
+static int   old_battery_status = 9;
 
 //########################################
 //# destroy date layer
@@ -171,6 +174,7 @@ static void create_battery_layer(){
   bitmap_layer_set_compositing_mode(battery_layer, GCompOpSet);
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(battery_layer));
 }
+
 static void destroy_battery_layer(){
   layer_remove_from_parent(bitmap_layer_get_layer(battery_layer));
   bitmap_layer_destroy(battery_layer);
@@ -178,7 +182,7 @@ static void destroy_battery_layer(){
 }
 
 static void handle_battery(BatteryChargeState charge_state) {
-  // battery_1min_ago (min:0 - max:9,chg:10) との違いをチェック
+  // old_battery_status (min:0 - max:9,chg:10) との違いをチェック
   // 変化があったら書き換える(毎回書き換えしないように)
   int s = 0;
   int b50 = 5 ;  // 50%
@@ -194,7 +198,7 @@ static void handle_battery(BatteryChargeState charge_state) {
     s = ( charge_state.charge_percent - 1 ) / 10 ;
   }
   
-  if ( s == battery_1min_ago ) {
+  if ( s == old_battery_status ) {
     ; // 画面書き換え無し
   } else {
     // 画面書き換え有り
@@ -213,7 +217,7 @@ static void handle_battery(BatteryChargeState charge_state) {
     
     create_battery_layer();
   } 
-  battery_1min_ago = s; // deinit... 
+  old_battery_status = s; // deinit... 
 }
 
 //########################################
@@ -321,7 +325,7 @@ static void display_time(struct tm *tick_time) {
   MM10_image     = gbitmap_create_with_resource(NUM_IMG_IDS[(tick_time->tm_min)  / 10]); 
   MM01_image     = gbitmap_create_with_resource(NUM_IMG_IDS[(tick_time->tm_min)  % 10]); 
 
-  snprintf(dbg_buffer, 40, "%s %d0%%", dbg_text,battery_1min_ago); // debug
+  snprintf(dbg_buffer, 40, "%s %d0%%", dbg_text,old_battery_status); // debug
   text_layer_set_text(dbg_layer,dbg_buffer); // debug
 
   create_time_layers();

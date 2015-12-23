@@ -1,3 +1,11 @@
+/*
+ WAREKI
+ Displey Japanese Year calendar 
+ 
+ ahiru studio
+ 
+ 2014/01/25 Ver.1.0.0
+ */
 #include <pebble.h>
 //
 //
