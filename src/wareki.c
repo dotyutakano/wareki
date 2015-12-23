@@ -10,7 +10,9 @@
  2015/03/01 Ver.1.3  SDK 2 add YAMA no Hi at 2016/08/11 
  2015/03/09 Ver.2.0  SDK 3 
  2015/11/14 Ver.2.1  SDK 3
+ 	カラー化
  2015/12/17 Ver.2.2  SDK 3.8 Battery state , Round (APLITE FW3.8)
+	バッテリー表示を追加 Round対応
 
  カラーと白黒では画像の載せ方が違うから別にした方がいいかな？
  -> 2015/12 Pebble ClassicもFW3.8になったので同じになった
@@ -45,7 +47,7 @@ static int   y = 16;
 
 // バッテリー表示の無駄な更新を減らすためのフラグ
 // 10:充電中 0-9:バッテリー残量 初期値9
-static int   old_battery_status = 9;
+static int   last_battery_status = 9;
 
 //########################################
 //# destroy date layer
@@ -112,20 +114,20 @@ static void create_date_layers(){
   bitmap_layer_set_bitmap(day10_layer,   day10_image);
   bitmap_layer_set_bitmap(day01_layer,   day01_image);
   bitmap_layer_set_bitmap(wday_layer,    wday_image);
-  bitmap_layer_set_alignment(year10_layer,GAlignLeft);
-  bitmap_layer_set_alignment(year01_layer,GAlignLeft);
-  bitmap_layer_set_alignment(month10_layer,GAlignLeft);
-  bitmap_layer_set_alignment(month01_layer,GAlignLeft);
-  bitmap_layer_set_alignment(day10_layer,GAlignLeft);
-  bitmap_layer_set_alignment(day01_layer,GAlignLeft);
-  bitmap_layer_set_alignment(wday_layer,GAlignLeft);
-  bitmap_layer_set_compositing_mode(year10_layer, GCompOpSet);
-  bitmap_layer_set_compositing_mode(year01_layer, GCompOpSet);
+  bitmap_layer_set_alignment(year10_layer,  GAlignLeft);
+  bitmap_layer_set_alignment(year01_layer,  GAlignLeft);
+  bitmap_layer_set_alignment(month10_layer, GAlignLeft);
+  bitmap_layer_set_alignment(month01_layer, GAlignLeft);
+  bitmap_layer_set_alignment(day10_layer,   GAlignLeft);
+  bitmap_layer_set_alignment(day01_layer,   GAlignLeft);
+  bitmap_layer_set_alignment(wday_layer,    GAlignLeft);
+  bitmap_layer_set_compositing_mode(year10_layer,  GCompOpSet);
+  bitmap_layer_set_compositing_mode(year01_layer,  GCompOpSet);
   bitmap_layer_set_compositing_mode(month10_layer, GCompOpSet);
   bitmap_layer_set_compositing_mode(month01_layer, GCompOpSet);
-  bitmap_layer_set_compositing_mode(day10_layer, GCompOpSet);
-  bitmap_layer_set_compositing_mode(day01_layer, GCompOpSet);
-  bitmap_layer_set_compositing_mode(wday_layer, GCompOpSet);
+  bitmap_layer_set_compositing_mode(day10_layer,   GCompOpSet);
+  bitmap_layer_set_compositing_mode(day01_layer,   GCompOpSet);
+  bitmap_layer_set_compositing_mode(wday_layer,    GCompOpSet);
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(year10_layer));
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(year01_layer));
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(month10_layer));
@@ -146,10 +148,10 @@ static void create_time_layers(){
   bitmap_layer_set_bitmap(HH01_layer, HH01_image);
   bitmap_layer_set_bitmap(MM10_layer, MM10_image);
   bitmap_layer_set_bitmap(MM01_layer, MM01_image);
-  bitmap_layer_set_alignment(HH10_layer,GAlignLeft);
-  bitmap_layer_set_alignment(HH01_layer,GAlignLeft);
-  bitmap_layer_set_alignment(MM10_layer,GAlignLeft);
-  bitmap_layer_set_alignment(MM01_layer,GAlignLeft);
+  bitmap_layer_set_alignment(HH10_layer, GAlignLeft);
+  bitmap_layer_set_alignment(HH01_layer, GAlignLeft);
+  bitmap_layer_set_alignment(MM10_layer, GAlignLeft);
+  bitmap_layer_set_alignment(MM01_layer, GAlignLeft);
   bitmap_layer_set_compositing_mode(HH10_layer, GCompOpSet);
   bitmap_layer_set_compositing_mode(HH01_layer, GCompOpSet);
   bitmap_layer_set_compositing_mode(MM10_layer, GCompOpSet);
@@ -182,42 +184,44 @@ static void destroy_battery_layer(){
 }
 
 static void handle_battery(BatteryChargeState charge_state) {
-  // old_battery_status (min:0 - max:9,chg:10) との違いをチェック
-  // 変化があったら書き換える(毎回書き換えしないように)
-  int s = 0;
-  int b50 = 5 ;  // 50%
-  int b30 = 3 ;  // 30% 
-  if (mydebug) {
-   b50 = 9 ;
-   b30 = 7 ;
-  }
+	// last_battery_status (min:0 - max:9,chg:10) との違いをチェック
+	// 変化があったら書き換える(毎回書き換えしないように)
+	// sはバッテリー残量の10の桁。100の場合は9にする。
+	// 大まかな残量しか興味がないので厳密にチェックしない。
+	int s = 0;
+	int b50 = 5 ;  // 50%
+	int b30 = 3 ;  // 30% 
+	if (mydebug) {
+		b50 = 9 ;
+		b30 = 7 ;
+	}
   
-  if (charge_state.is_charging) {              // charging...
-    s = 10;
-    } else {
-    s = ( charge_state.charge_percent - 1 ) / 10 ;
-  }
+	if (charge_state.is_charging) {              // charging...
+		s = 10;
+	} else {
+		s = ( charge_state.charge_percent - 1 ) / 10 ;
+	}
   
-  if ( s == old_battery_status ) {
-    ; // 画面書き換え無し
-  } else {
-    // 画面書き換え有り
-    destroy_battery_layer();
+	if ( s == last_battery_status ) {
+ 		; // 画面書き換え無し
+	} else {
+		// 画面書き換え有り
+		destroy_battery_layer();
     
-    battery_image   = gbitmap_create_with_resource(RESOURCE_ID_NULL);    
-    if ( s < b50 ){ // 49%
-      battery_image   = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY_50);
-    }
-    if ( s < b30 ){ // 29%
-      battery_image   = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY_30);
-    }
-    if ( s == 10 ){ // charging
-      battery_image   = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY_CHARGING);
-    }
+		battery_image   = gbitmap_create_with_resource(RESOURCE_ID_NULL);    
+		if ( s < b50 ){ // 49%
+			battery_image   = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY_50);
+		}
+		if ( s < b30 ){ // 29%
+			battery_image   = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY_30);
+		}
+		if ( s == 10 ){ // charging
+			battery_image   = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY_CHARGING);
+		}
     
-    create_battery_layer();
-  } 
-  old_battery_status = s; // deinit... 
+		create_battery_layer();
+	} 
+	last_battery_status = s; // deinit... 
 }
 
 //########################################
@@ -325,7 +329,7 @@ static void display_time(struct tm *tick_time) {
   MM10_image     = gbitmap_create_with_resource(NUM_IMG_IDS[(tick_time->tm_min)  / 10]); 
   MM01_image     = gbitmap_create_with_resource(NUM_IMG_IDS[(tick_time->tm_min)  % 10]); 
 
-  snprintf(dbg_buffer, 40, "%s %d0%%", dbg_text,old_battery_status); // debug
+  snprintf(dbg_buffer, 40, "%s %d0%%", dbg_text,last_battery_status); // debug
   text_layer_set_text(dbg_layer,dbg_buffer); // debug
 
   create_time_layers();
